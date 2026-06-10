@@ -522,235 +522,248 @@
         </div>
     </div>
 
-    <script>
-        // Load from localStorage
-        let games = JSON.parse(localStorage.getItem('ginRummyGames') || '[]');
-        let currentGame = JSON.parse(localStorage.getItem('ginRummyCurrentGame') || '[]');
+<script>
+    let games = JSON.parse(localStorage.getItem('ginRummyGames') || '[]');
+    let currentGame = JSON.parse(localStorage.getItem('ginRummyCurrentGame') || '[]');
 
-        function saveData() {
-            localStorage.setItem('ginRummyGames', JSON.stringify(games));
-            localStorage.setItem('ginRummyCurrentGame', JSON.stringify(currentGame));
-        }
+    let playerNames = JSON.parse(
+        localStorage.getItem('ginRummyPlayerNames') ||
+        '{"knocker":"Player 1","opponent":"Player 2"}'
+    );
 
-        function swapPlayers() {
-            const knockerName = document.getElementById('knockerName');
-            const opponentName = document.getElementById('opponentName');
-            const knockerDW = document.getElementById('knockerDeadwood');
-            const opponentDW = document.getElementById('opponentDeadwood');
-            
-            [knockerName.value, opponentName.value] = [opponentName.value, knockerName.value];
-            [knockerDW.value, opponentDW.value] = [opponentDW.value, knockerDW.value];
-        }
+    function saveData() {
+        localStorage.setItem('ginRummyGames', JSON.stringify(games));
+        localStorage.setItem('ginRummyCurrentGame', JSON.stringify(currentGame));
+        localStorage.setItem('ginRummyPlayerNames', JSON.stringify(playerNames));
+    }
 
-        function calculateScore() {
-            const knockerDW = parseInt(document.getElementById('knockerDeadwood').value) || 0;
-            const opponentDW = parseInt(document.getElementById('opponentDeadwood').value) || 0;
-            const isGin = document.getElementById('knockerGin').checked;
-            const knockerWon = document.getElementById('knockerWon').checked;
+    function savePlayerNames() {
+        playerNames.knocker = document.getElementById('knockerName').value || 'Player 1';
+        playerNames.opponent = document.getElementById('opponentName').value || 'Player 2';
+        saveData();
+    }
 
-            let knockerScore = 0, opponentScore = 0, notes = [];
+    function loadPlayerNamesToInputs() {
+        document.getElementById('knockerName').value = playerNames.knocker;
+        document.getElementById('opponentName').value = playerNames.opponent;
+    }
 
-            if (isGin) {
-                knockerScore = opponentDW + 25;
-                notes.push(`Gin! All cards melded (25 pt bonus)`);
-                notes.push(`Opponent's deadwood: ${opponentDW} pts`);
-            } else if (knockerWon) {
-                const diff = opponentDW - knockerDW;
-                if (diff > 0) {
-                    knockerScore = diff;
-                    notes.push(`Knocked with ${knockerDW} deadwood`);
-                    notes.push(`Opponent had ${opponentDW} deadwood`);
-                    notes.push(`Difference: ${diff} pts`);
-                } else {
-                    notes.push(`Knocked with ${knockerDW} deadwood`);
-                    notes.push(`Opponent had ${opponentDW} deadwood or less`);
-                    notes.push(`No points scored`);
-                }
+    function swapPlayers() {
+        savePlayerNames();
+
+        [playerNames.knocker, playerNames.opponent] = [playerNames.opponent, playerNames.knocker];
+
+        const knockerDW = document.getElementById('knockerDeadwood');
+        const opponentDW = document.getElementById('opponentDeadwood');
+        [knockerDW.value, opponentDW.value] = [opponentDW.value, knockerDW.value];
+
+        loadPlayerNamesToInputs();
+        saveData();
+    }
+
+    function calculateScore() {
+        const knockerDW = parseInt(document.getElementById('knockerDeadwood').value) || 0;
+        const opponentDW = parseInt(document.getElementById('opponentDeadwood').value) || 0;
+        const isGin = document.getElementById('knockerGin').checked;
+        const knockerWon = document.getElementById('knockerWon').checked;
+
+        let knockerScore = 0, opponentScore = 0, notes = [];
+
+        if (isGin) {
+            knockerScore = opponentDW + 25;
+            notes.push(`Gin! All cards melded (25 pt bonus)`);
+            notes.push(`Opponent's deadwood: ${opponentDW} pts`);
+        } else if (knockerWon) {
+            const diff = opponentDW - knockerDW;
+            if (diff > 0) {
+                knockerScore = diff;
+                notes.push(`Knocked with ${knockerDW} deadwood`);
+                notes.push(`Opponent had ${opponentDW} deadwood`);
+                notes.push(`Difference: ${diff} pts`);
             } else {
-                const diff = knockerDW - opponentDW;
-                opponentScore = diff + 10;
-                notes.push(`Undercut! Opponent won`);
-                notes.push(`Knocker's deadwood: ${knockerDW} pts`);
-                notes.push(`Opponent's deadwood: ${opponentDW} pts`);
-                notes.push(`Difference: ${diff} pts + 10 pt undercut bonus`);
+                notes.push(`Knocked with ${knockerDW} deadwood`);
+                notes.push(`Opponent had ${opponentDW} deadwood or less`);
+                notes.push(`No points scored`);
             }
-
-            return { knockerScore, opponentScore, notes };
+        } else {
+            const diff = knockerDW - opponentDW;
+            opponentScore = diff + 10;
+            notes.push(`Undercut! Opponent won`);
+            notes.push(`Knocker's deadwood: ${knockerDW} pts`);
+            notes.push(`Opponent's deadwood: ${opponentDW} pts`);
+            notes.push(`Difference: ${diff} pts + 10 pt undercut bonus`);
         }
 
-        function addHand() {
-            const { knockerScore, opponentScore, notes } = calculateScore();
-            
-            const hand = {
-                id: Date.now(),
-                knockerName: document.getElementById('knockerName').value,
-                opponentName: document.getElementById('opponentName').value,
-                knockerDeadwood: parseInt(document.getElementById('knockerDeadwood').value) || 0,
-                opponentDeadwood: parseInt(document.getElementById('opponentDeadwood').value) || 0,
-                knockerGin: document.getElementById('knockerGin').checked,
-                knockerWon: document.getElementById('knockerWon').checked,
-                knockerScore,
-                opponentScore,
-                notes
-            };
+        return { knockerScore, opponentScore, notes };
+    }
 
-            currentGame.push(hand);
+    function addHand() {
+        savePlayerNames();
+
+        const { knockerScore, opponentScore, notes } = calculateScore();
+
+        const hand = {
+            id: Date.now(),
+            knockerName: playerNames.knocker,
+            opponentName: playerNames.opponent,
+            knockerDeadwood: parseInt(document.getElementById('knockerDeadwood').value) || 0,
+            opponentDeadwood: parseInt(document.getElementById('opponentDeadwood').value) || 0,
+            knockerGin: document.getElementById('knockerGin').checked,
+            knockerWon: document.getElementById('knockerWon').checked,
+            knockerScore,
+            opponentScore,
+            notes
+        };
+
+        currentGame.push(hand);
+        saveData();
+
+        document.getElementById('knockerDeadwood').value = '0';
+        document.getElementById('opponentDeadwood').value = '0';
+        document.getElementById('knockerGin').checked = false;
+        document.getElementById('knockerWon').checked = true;
+
+        render();
+    }
+
+    function deleteHand(id) {
+        currentGame = currentGame.filter(h => h.id !== id);
+        saveData();
+        render();
+    }
+
+    function finishGame() {
+        if (currentGame.length === 0) return;
+        games.push({ id: Date.now(), hands: currentGame });
+        currentGame = [];
+        saveData();
+        render();
+    }
+
+    function clearGame() {
+        currentGame = [];
+        saveData();
+        render();
+    }
+
+    function clearAllGames() {
+        if (confirm('Clear all saved games?')) {
+            games = [];
             saveData();
-
-            document.getElementById('knockerDeadwood').value = '0';
-            document.getElementById('opponentDeadwood').value = '0';
-            document.getElementById('knockerGin').checked = false;
-            document.getElementById('knockerWon').checked = true;
-
             render();
         }
+    }
 
-        function deleteHand(id) {
-            currentGame = currentGame.filter(h => h.id !== id);
-            saveData();
-            render();
-        }
+    function getGameTotals(gameHands) {
+        const totals = {};
+        gameHands.forEach(hand => {
+            totals[hand.knockerName] = (totals[hand.knockerName] || 0) + hand.knockerScore;
+            totals[hand.opponentName] = (totals[hand.opponentName] || 0) + hand.opponentScore;
+        });
+        return totals;
+    }
 
-        function finishGame() {
-            if (currentGame.length === 0) return;
-            games.push({ id: Date.now(), hands: currentGame });
-            currentGame = [];
-            saveData();
-            render();
-        }
+    function render() {
+        loadPlayerNamesToInputs();
 
-        function clearGame() {
-            currentGame = [];
-            saveData();
-            render();
-        }
+        document.getElementById('knockerName').oninput = savePlayerNames;
+        document.getElementById('opponentName').oninput = savePlayerNames;
 
-        function clearAllGames() {
-            if (confirm('Clear all saved games?')) {
-                games = [];
-                saveData();
-                render();
+        document.getElementById('knockerGin').onchange = function() {
+            document.getElementById('knockerWonLabel').classList.toggle('hidden', this.checked);
+            if (this.checked) document.getElementById('knockerWon').checked = true;
+        };
+
+        document.getElementById('currentGameCard').classList.toggle('hidden', currentGame.length === 0);
+
+        if (currentGame.length > 0) {
+            const totals = getGameTotals(currentGame);
+
+            let scoreHtml = '';
+            for (const [player, score] of Object.entries(totals)) {
+                scoreHtml += `
+                    <div class="score-box">
+                        <div class="score-box-label">${player}</div>
+                        <div class="score-box-value">${score}</div>
+                    </div>
+                `;
             }
-        }
+            document.getElementById('scoreDisplay').innerHTML = scoreHtml;
 
-        function getGameTotals(gameHands) {
-            const totals = {};
-            gameHands.forEach(hand => {
-                totals[hand.knockerName] = (totals[hand.knockerName] || 0) + hand.knockerScore;
-                totals[hand.opponentName] = (totals[hand.opponentName] || 0) + hand.opponentScore;
+            let handsHtml = '';
+            currentGame.forEach((hand, idx) => {
+                handsHtml += `
+                    <div class="hand-item">
+                        <button class="hand-header" onclick="toggleHand('hand-${hand.id}')">
+                            <span>Hand ${idx + 1}</span>
+                            <span id="toggle-hand-${hand.id}">▼</span>
+                        </button>
+                        <div class="hand-content hidden" id="hand-${hand.id}">
+                            <div class="hand-scores">
+                                <div class="hand-score-item">
+                                    <div class="hand-score-label">${hand.knockerName}</div>
+                                    <div class="hand-score-value">${hand.knockerScore} pts</div>
+                                </div>
+                                <div class="hand-score-item">
+                                    <div class="hand-score-label">${hand.opponentName}</div>
+                                    <div class="hand-score-value">${hand.opponentScore} pts</div>
+                                </div>
+                            </div>
+                            <div class="hand-notes">
+                                ${hand.notes.map(note => `<p>${note}</p>`).join('')}
+                            </div>
+                            <button class="btn-danger" onclick="deleteHand(${hand.id})">🗑 Delete Hand</button>
+                        </div>
+                    </div>
+                `;
             });
-            return totals;
+            document.getElementById('handsList').innerHTML = handsHtml;
         }
 
-        function render() {
-            // Update gin checkbox behavior
-            document.getElementById('knockerGin').onchange = function() {
-                document.getElementById('knockerWonLabel').classList.toggle('hidden', this.checked);
-                if (this.checked) document.getElementById('knockerWon').checked = true;
-            };
+        document.getElementById('completedGamesCard').classList.toggle('hidden', games.length === 0);
 
-            // Show/hide current game card
-            document.getElementById('currentGameCard').classList.toggle('hidden', currentGame.length === 0);
+        if (games.length > 0) {
+            let gamesHtml = '';
+            games.forEach((game, idx) => {
+                const totals = getGameTotals(game.hands);
+                const winner = Object.entries(totals).reduce((a, b) => a[1] > b[1] ? a : b);
 
-            if (currentGame.length > 0) {
-                const totals = getGameTotals(currentGame);
-                
-                // Render scores
-                let scoreHtml = '';
+                let scoresHtml = '';
                 for (const [player, score] of Object.entries(totals)) {
-                    scoreHtml += `
-                        <div class="score-box">
-                            <div class="score-box-label">${player}</div>
-                            <div class="score-box-value">${score}</div>
+                    const isWinner = player === winner[0];
+                    scoresHtml += `
+                        <div class="game-score-card">
+                            <div class="game-score-card-name">${player}</div>
+                            <div class="game-score-card-value ${isWinner ? 'winner' : ''}">${score}</div>
                         </div>
                     `;
                 }
-                document.getElementById('scoreDisplay').innerHTML = scoreHtml;
 
-                // Render hands
-                let handsHtml = '';
-                currentGame.forEach((hand, idx) => {
-                    handsHtml += `
-                        <div class="hand-item">
-                            <button class="hand-header" onclick="toggleHand('hand-${hand.id}')">
-                                <span>Hand ${idx + 1}</span>
-                                <span id="toggle-hand-${hand.id}">▼</span>
-                            </button>
-                            <div class="hand-content hidden" id="hand-${hand.id}">
-                                <div class="hand-scores">
-                                    <div class="hand-score-item">
-                                        <div class="hand-score-label">${hand.knockerName}</div>
-                                        <div class="hand-score-value">${hand.knockerScore} pts</div>
-                                    </div>
-                                    <div class="hand-score-item">
-                                        <div class="hand-score-label">${hand.opponentName}</div>
-                                        <div class="hand-score-value">${hand.opponentScore} pts</div>
-                                    </div>
-                                </div>
-                                <div class="hand-notes">
-                                    ${hand.notes.map(note => `<p>${note}</p>`).join('')}
-                                </div>
-                                <button class="btn-danger" onclick="deleteHand(${hand.id})">🗑 Delete Hand</button>
-                            </div>
+                gamesHtml += `
+                    <div class="game-summary">
+                        <div class="game-header">
+                            <div>Game ${idx + 1}</div>
+                            <div class="game-header-right">${game.hands.length} hands</div>
                         </div>
-                    `;
-                });
-                document.getElementById('handsList').innerHTML = handsHtml;
-            }
-
-            // Show/hide completed games card
-            document.getElementById('completedGamesCard').classList.toggle('hidden', games.length === 0);
-
-            if (games.length > 0) {
-                let gamesHtml = '';
-                games.forEach((game, idx) => {
-                    const totals = getGameTotals(game.hands);
-                    const winner = Object.entries(totals).reduce((a, b) => a[1] > b[1] ? a : b);
-                    
-                    let scoresHtml = '';
-                    for (const [player, score] of Object.entries(totals)) {
-                        const isWinner = player === winner[0];
-                        scoresHtml += `
-                            <div class="game-score-card">
-                                <div class="game-score-card-name">${player}</div>
-                                <div class="game-score-card-value ${isWinner ? 'winner' : ''}">${score}</div>
-                            </div>
-                        `;
-                    }
-                    
-                    gamesHtml += `
-                        <div class="game-summary">
-                            <div class="game-header">
-                                <div>Game ${idx + 1}</div>
-                                <div class="game-header-right">${game.hands.length} hands</div>
-                            </div>
-                            <div class="game-scores">
-                                ${scoresHtml}
-                            </div>
+                        <div class="game-scores">
+                            ${scoresHtml}
                         </div>
-                    `;
-                });
-                document.getElementById('gamesList').innerHTML = gamesHtml;
-            }
-        }
-
-        function toggleHand(id) {
-            const content = document.getElementById(id);
-            const toggle = document.getElementById('toggle-' + id);
-            content.classList.toggle('hidden');
-            toggle.textContent = content.classList.contains('hidden') ? '▼' : '▲';
-        }
-
-        // Initial render
-        render();
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('./service-worker.js').catch(function (error) {
-                    console.log('Service worker registration failed:', error);
-                });
+                    </div>
+                `;
             });
+            document.getElementById('gamesList').innerHTML = gamesHtml;
         }
-    </script>
+    }
+
+    function toggleHand(id) {
+        const content = document.getElementById(id);
+        const toggle = document.getElementById('toggle-' + id);
+        content.classList.toggle('hidden');
+        toggle.textContent = content.classList.contains('hidden') ? '▼' : '▲';
+    }
+
+    loadPlayerNamesToInputs();
+    render();
+</script>
 </body>
 </html>
