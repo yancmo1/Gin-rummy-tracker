@@ -488,24 +488,94 @@
         </div>
     </div>
 
-    <div class="small-note">Saved locally on this device.</div>
+    <div class="small-note">Saved on server.</div>
 </div>
 
 <script>
     const GAME_TARGET = 100;
+    const API_URL = '/api';
 
-    let games = JSON.parse(localStorage.getItem('ginRummyGames') || '[]');
-    let currentGame = JSON.parse(localStorage.getItem('ginRummyCurrentGame') || '[]');
+    let games = [];
+    let currentGame = [];
+    let userId = null;
 
-    let playerNames = JSON.parse(
-        localStorage.getItem('ginRummyPlayerNames') ||
-        '{"knocker":"Player 1","opponent":"Player 2"}'
-    );
+    let playerNames = {
+        knocker: 'Player 1',
+        opponent: 'Player 2'
+    };
+
+    let isSyncing = false;
+
+    // Initialize user ID from localStorage or fetch from server
+    async function initializeUserId() {
+        let storedUserId = localStorage.getItem('ginRummyUserId');
+        if (storedUserId) {
+            userId = storedUserId;
+        } else {
+            try {
+                const response = await fetch(`${API_URL}/user-id`);
+                const { userId: newUserId } = await response.json();
+                userId = newUserId;
+                localStorage.setItem('ginRummyUserId', userId);
+            } catch (error) {
+                console.error('Failed to get user ID:', error);
+                userId = 'default-user';
+                localStorage.setItem('ginRummyUserId', userId);
+            }
+        }
+    }
+
+    // Load data from server
+    async function loadDataFromServer() {
+        try {
+            const response = await fetch(`${API_URL}/data`, {
+                headers: { 'x-user-id': userId }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                games = data.games || [];
+                currentGame = data.currentGame || [];
+                playerNames = data.playerNames || { knocker: 'Player 1', opponent: 'Player 2' };
+                return true;
+            }
+        } catch (error) {
+            console.error('Failed to load data from server:', error);
+        }
+        return false;
+    }
+
+    // Save data to server
+    async function saveDataToServer() {
+        if (isSyncing) return;
+
+        isSyncing = true;
+        try {
+            const response = await fetch(`${API_URL}/data`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-id': userId
+                },
+                body: JSON.stringify({
+                    games,
+                    currentGame,
+                    playerNames
+                })
+            });
+
+            if (!response.ok) {
+                console.error('Failed to save data to server');
+            }
+        } catch (error) {
+            console.error('Failed to save data to server:', error);
+        } finally {
+            isSyncing = false;
+        }
+    }
 
     function saveData() {
-        localStorage.setItem('ginRummyGames', JSON.stringify(games));
-        localStorage.setItem('ginRummyCurrentGame', JSON.stringify(currentGame));
-        localStorage.setItem('ginRummyPlayerNames', JSON.stringify(playerNames));
+        // Save to server asynchronously without blocking UI
+        saveDataToServer();
     }
 
     function savePlayerNames() {
@@ -891,8 +961,15 @@
         });
     }
 
-    loadPlayerNamesToInputs();
-    render();
+    // Initialize app with server sync
+    async function initializeApp() {
+        await initializeUserId();
+        await loadDataFromServer();
+        loadPlayerNamesToInputs();
+        render();
+    }
+
+    initializeApp();
 </script>
 </body>
 </html>
